@@ -1,0 +1,96 @@
+---
+name: Helm upgrade test
+on:
+  workflow_call:
+    inputs:
+      helm-version:
+        description: 'Helm version to use'
+        required: false
+        default: latest
+        type: string
+      install-strategy:
+        description: 'Install strategy to use (helm, argocd)'
+        required: false
+        default: helm
+        type: choice
+        options:
+          - helm
+          - argocd
+      wait-cmd:
+        description: 'Command to wait for the application to be ready'
+        required: false
+        default: 'echo "Waiting for application to be ready" && sleep 10'
+        type: string
+      wait-cmd-after-upgrade:
+        description: 'Command to wait for the application to be ready after upgrade'
+        required: false
+        default: 'echo "Waiting for application to be ready" && sleep 10'
+        type: string
+      test-cmd:
+        description: 'Command to run the test'
+        required: false
+        default: 'echo "No tests defined"'
+        type: string
+
+
+jobs:
+  upgrade_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.3.0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: ${{ inputs.helm-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout code before upgrade
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.base_ref }}
+
+      # TODO(jaosorior): Make chart path configurable
+      - name: Install chart before upgrade (helm)
+        run: |
+          helm install target-chart .
+        if: ${{ inputs.install-strategy == 'helm' }}
+      
+      # TODO(jaosorior): Make chart path configurable
+      - name: Install chart before upgrade (argocd)
+        run: |
+          helm template target-chart . | kubectl apply -f -
+        if: ${{ inputs.install-strategy == 'argocd' }}
+      
+      - name: Wait for application to be ready
+        run: |
+          ${{ inputs.wait-cmd }}
+        if: ${{ inputs.wait-cmd != '' }}
+      
+      - name: Checkout code after upgrade
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+      
+      # TODO(jaosorior): Make chart path configurable
+      - name: Upgrade chart after upgrade (helm)
+        run: |
+          helm upgrade target-chart .
+        if: ${{ inputs.install-strategy == 'helm' }}
+      
+      # TODO(jaosorior): Make chart path configurable
+      - name: Upgrade chart after upgrade (argocd)
+        run: |
+          helm template target-chart . | kubectl apply -f -
+        if: ${{ inputs.install-strategy == 'argocd' }}
+
+      - name: Wait for application to be ready
+        run: |
+          ${{ inputs.wait-cmd-after-upgrade }}
+        if: ${{ inputs.wait-cmd-after-upgrade != '' }}
+      
+      - name: Run tests
+        run: |
+          ${{ inputs.test-cmd }}
+        if: ${{ inputs.test-cmd != '' }}
