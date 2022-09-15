@@ -15,11 +15,9 @@ on:
 
 jobs:
   helm-upgrade-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: metal-toolbox/helm-upgrade-test/.github/workflows/upgrade-test@main
-        with:
-          install-strategy: helm
+    uses: metal-toolbox/helm-upgrade-test/.github/workflows/upgrade-test.yml@main
+    with:
+      install-strategy: helm
 ```
 
 The workflow will be triggered on every pull request. It will install the chart in the `charts` directory and upgrade it to the version in the pull request. No tests will be ran.

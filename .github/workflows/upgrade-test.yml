@@ -12,10 +12,7 @@ on:
         description: 'Install strategy to use (helm, argocd)'
         required: false
         default: helm
-        type: choice
-        options:
-          - helm
-          - argocd
+        type: string
       wait-cmd:
         description: 'Command to wait for the application to be ready'
         required: false
